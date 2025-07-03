@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mastermind Game</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: {% if effect %}#ffffff{% else %}linear-gradient(to right, #f9f9f9, #e0f7fa){% endif %};
+      text-align: center;
+      padding: 40px;
+      color: #333;
+      position: relative;
+      overflow-x: hidden;
+      margin: 0;
+      height: 100vh;
+    }
+
+    h1, form, .selected-colors, .attempts-title, .attempt, p, h2 {
+      {% if effect %}display: none;{% endif %}
+    }
+
+    .color-btn {
+      padding: 15px;
+      border: none;
+      border-radius: 50%;
+      margin: 10px;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+    }
+
+    .submit-btn {
+      padding: 10px 30px;
+      font-size: 1em;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .selected-colors {
+      margin: 20px;
+      font-size: 1.2em;
+    }
+
+    .attempts-title {
+      margin-top: 30px;
+    }
+
+    .attempts-container {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 0 20px;
+    }
+
+    .attempt {
+      background-color: #fff;
+      margin: 10px auto;
+      width: 80%;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .color-circle {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    #confetti {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .sad-center {
+      font-size: 7rem;
+      margin-top: 140px;
+      animation: move 2s infinite alternate ease-in-out;
+    }
+
+    .end-message {
+      font-size: 1.6rem;
+      font-weight: bold;
+      margin-top: 30px;
+    }
+
+    .retry-btn {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      background: #ff6f61;
+      color: white;
+      cursor: pointer;
+    }
+
+    @keyframes move {
+      0% { transform: translateY(-10px); }
+      100% { transform: translateY(10px); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Mastermind Game</h1>
+  <p><strong>Pick 4 Colors:</strong></p>
+  <p><strong>Remaining Attempts:</strong> {{ remaining }}/{{ max_attempts }}</p>
+
+  <form method="POST" id="guessForm">
+    <div>
+      {% for color in colors %}
+        <button type="button" class="color-btn" style="background-color: {{ color|lower }};" onclick="addColor('{{ color }}')"></button>
+      {% endfor %}
+    </div>
+
+    <div class="selected-colors" id="selectedColors">Selected: (0/4)</div>
+    <input type="hidden" name="guess" id="guessInput">
+    <button type="submit" class="submit-btn">Submit Guess</button>
+  </form>
+
+  {% if message and effect %}
+    <div class="end-message">{{ message }}</div>
+    {% if final_code %}
+      <p class="end-message">🔐 The code was: {{ final_code|join(', ') }}</p>
+    {% endif %}
+  {% endif %}
+
+  <h2 class="attempts-title">Previous Attempts:</h2>
+  <div class="attempts-container">
+    {% for attempt in attempts %}
+      <div class="attempt">
+        {% for c in attempt.guess %}
+          <span class="color-circle" style="background-color: {{ c|lower }};"></span>
+        {% endfor %}
+         Correct: {{ attempt.correct_positions }} |
+         Wrong Pos: {{ attempt.wrong_positions }}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if effect == "win" %}
+    <canvas id="confetti"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+      const duration = 4000;
+      const animationEnd = Date.now() + duration;
+      const defaults = {
+        startVelocity: 25,
+        spread: 120,
+        ticks: 90,
+        zIndex: 999,
+        gravity: 0.6,
+        origin: { y: 0.6 }
+      };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) clearInterval(interval);
+
+        confetti({ ...defaults, particleCount: 12, origin: { x: randomInRange(0, 0.2), y: Math.random() - 0.2 }});
+        confetti({ ...defaults, particleCount: 12, origin: { x: randomInRange(0.8, 1), y: Math.random() - 0.2 }});
+      }, 250);
+    </script>
+
+    <div class="end-message">
+      <button onclick="location.reload()" class="retry-btn"> Back to Game</button>
+    </div>
+
+  {% elif effect == "fail" %}
+    <div class="sad-center">😞</div>
+    <div class="end-message">
+      <button onclick="location.reload()" class="retry-btn"> Keep Try Again</button>
+    </div>
+  {% endif %}
+
+  <script>
+    const selected = [];
+    function addColor(color) {
+      if (selected.length < 4) {
+        selected.push(color);
+        updateSelected();
+      }
+    }
+
+    function updateSelected() {
+      document.getElementById("selectedColors").innerText =
+        "Selected: " + selected.join(", ") + " (" + selected.length + "/4)";
+      if (selected.length === 4) {
+        document.getElementById("guessInput").value = selected.join(" ");
+      }
+    }
+
+    document.getElementById("guessForm").addEventListener("submit", function (e) {
+      if (selected.length !== 4) {
+        e.preventDefault();
+        alert("Please select exactly 4 colors!");
+      }
+    });
+  </script>
+
+</body>
+</html>
